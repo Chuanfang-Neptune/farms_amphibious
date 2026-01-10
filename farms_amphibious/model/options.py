@@ -521,6 +521,8 @@ class AmphibiousLinkOptions(LinkOptions):
             density=kwargs.pop('density'),
             drag_coefficients=kwargs.pop('drag_coefficients'),
             fluid_interaction=kwargs.pop('fluid_interaction'),
+            solref=kwargs.pop('solref',None),
+            solimp=kwargs.pop('solimp',None),
         )
         self.mass_multiplier: float = kwargs.pop('mass_multiplier')
         assert not kwargs, f'Unknown kwargs: {kwargs}'
