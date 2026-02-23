@@ -111,6 +111,7 @@ class JointMuscleController(AnimatController):
             animat_options: AmphibiousOptions,
             animat_data: AmphibiousData,
             animat_network: AnimatNetwork,
+            substep: bool = True,
     ):
         joints_control_names = animat_options.control.joints_names()
         joints_control_types: Dict[str, List[ControlType]] = {
@@ -132,7 +133,7 @@ class JointMuscleController(AnimatController):
                 },
                 joints_control_types=joints_control_types,
             ),
-            substep=True,
+            substep=substep,
         )
 
         self.network: AnimatNetwork = animat_network
