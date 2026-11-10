@@ -555,6 +555,7 @@ class AmphibiousLinkOptions(LinkOptions):
             drag_coefficients=kwargs.pop('drag_coefficients'),
             fluid_interaction=kwargs.pop('fluid_interaction'),
             sites=kwargs.pop('sites', []),
+            buoyancy_center=kwargs.pop('buoyancy_center', [0.0, 0.0, 0.0]),
         )
         self.mass_multiplier: float = kwargs.pop('mass_multiplier', 1.0)
         assert not kwargs, f'Unknown kwargs: {kwargs}'

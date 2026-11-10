@@ -64,9 +64,9 @@ class KinematicsController(AnimatController):
         super().__init__(
             animat_i=animat_i,
             joints_names=joints_names,
-            max_torques=max_torques,
             muscles_names=[],
         )
+        self.max_torques = max_torques
 
         kinematics_v = kwargs.pop('kinematics_v', None)
         if kinematics_v is not None:
@@ -225,12 +225,12 @@ class KinematicsController(AnimatController):
             max_torques=max_torques,
             joints_control_types=joints_control_types,
         )
-        if not Path(config['kinematics_file']).is_file():
+        if not Path(animat_options.control.kinematics_file).is_file():
             raise FileNotFoundError(
-                f"{config['kinematics_file']} is not a file"
+                f"{animat_options.control.kinematics_file} is not a file"
             )
         kinematics_position_target = np.genfromtxt(
-                config['kinematics_file'],
+                animat_options.control.kinematics_file,
                 delimiter=',',
         )
         if 'kinematics_v_file' in animat_options.control:
@@ -250,17 +250,17 @@ class KinematicsController(AnimatController):
             joints_names=joints_names_per_type,
             kinematics=kinematics_position_target,
             kinematics_v=kinematics_velocity_target,
-            sampling=config['kinematics_sampling'],
+            sampling=animat_options.control.kinematics_sampling,
             timestep=sim_options.physics.timestep,
             n_iterations=sim_options.runtime.n_iterations,
             animat_data=animat_data,
             max_torques=max_torques_per_type,
-            invert_motors=config['kinematics_invert'],
-            indices=config['kinematics_indices'],
-            time_index=config['kinematics_time_index'],
-            degrees=config['kinematics_degrees'],
-            init_time=config['kinematics_start'],
-            end_time=config['kinematics_end'],
+            invert_motors=animat_options.control.kinematics_invert,
+            indices=animat_options.control.kinematics_indices,
+            time_index=animat_options.control.kinematics_time_index,
+            degrees=animat_options.control.kinematics_degrees,
+            init_time=animat_options.control.kinematics_start,
+            end_time=animat_options.control.kinematics_end,
         )
 
     def positions(self, iteration, time, timestep):

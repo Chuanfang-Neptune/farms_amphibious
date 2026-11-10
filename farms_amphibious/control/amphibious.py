@@ -24,6 +24,7 @@ between the different Ekeberg muscle implementations.
 
 """
 
+import os
 from typing import Callable
 
 import numpy as np
@@ -78,15 +79,15 @@ class JointMuscleController(AnimatController):
                 joints_control_types=joints_control_types,
             ),
             muscles_names=[],
-            max_torques=AnimatController.max_torques_from_control_types(
-                joints_names=joints_control_names,
-                max_torques={
-                    motor.joint_name: motor.limits_torque[1]
-                    for motor in animat_options.control.motors
-                },
-                joints_control_types=joints_control_types,
-            ),
             substep=True,
+        )
+        self.max_torques = AnimatController.max_torques_from_control_types(
+            joints_names=joints_control_names,
+            max_torques={
+                motor.joint_name: motor.limits_torque[1]
+                for motor in animat_options.control.motors
+            },
+            joints_control_types=joints_control_types,
         )
 
         self.network: AnimatNetwork | None = animat_network
@@ -444,7 +445,9 @@ class AmphibiousController(JointMuscleController):
             )
         animat_network = NetworkODE(
             data=animat_data,
-            integrator='dopri5',
+            # 'rk4' (default) or a scipy integrator from FARMS_CPG_INTEGRATOR;
+            # nsteps and max_step apply to the scipy integrators only
+            integrator=os.environ.get('FARMS_CPG_INTEGRATOR', 'rk4'),
             nsteps=1000,
             max_step=experiment_options.simulation.physics.timestep,
             verbosity=3,

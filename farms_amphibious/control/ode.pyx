@@ -59,22 +59,40 @@ cpdef inline void ode_dphase(
 
     """
     cdef unsigned int i, i0, i1, n_oscillators = oscillators.n_oscillators
+    cdef DTYPE drive
+    # Local memoryviews of the arrays read in the loops
+    cdef DTYPEv2 drives_a = drives.array
+    cdef UITYPEv1 drive2osc = oscillators.drive2osc_map.array
+    cdef DTYPEv2 freq = oscillators.intrinsic_frequencies.array
+    cdef DTYPEv1 mod_amps = oscillators.modular_amplitudes.array
+    cdef DTYPEv1 mod_phases = oscillators.modular_phases.array
+    cdef UITYPEv2 conn = connectivity.connections.array
+    cdef DTYPEv1 weights = connectivity.weights.array
+    cdef DTYPEv1 desired = connectivity.desired_phases.array
     for i in range(n_oscillators):
-        # Intrinsic frequency
-        dstate[i] = oscillators.c_angular_frequency(iteration, i, drives)
-        if oscillators.c_modular_amplitudes(i) > 1e-3:
+        # Intrinsic frequency, as DriveDependentArrayCy.c_value: gain*drive
+        # + bias for low <= drive <= high, else the saturation value
+        drive = drives_a[iteration, drive2osc[i]]
+        dstate[i] = (
+            (freq[i, 0]*drive + freq[i, 1])
+            if freq[i, 2] <= drive <= freq[i, 3]
+            else freq[i, 4]
+            if drive < freq[i, 2]
+            else freq[i, 5]
+        )
+        if mod_amps[i] > 1e-3:
             dstate[i] *= (
-                1 + oscillators.c_modular_amplitudes(i)*cos(
-                    phase(state, i) + oscillators.c_modular_phases(i)
+                1 + mod_amps[i]*cos(
+                    phase(state, i) + mod_phases[i]
                 )
             )
     for i in range(connectivity.n_connections):
         # Neural couplings
-        i0 = connectivity.connections.array[i, 0]
-        i1 = connectivity.connections.array[i, 1]
-        dstate[i0] += state[n_oscillators+i1]*connectivity.c_weight(i)*sin(
+        i0 = conn[i, 0]
+        i1 = conn[i, 1]
+        dstate[i0] += state[n_oscillators+i1]*weights[i]*sin(
             phase(state, i1) - phase(state, i0)
-            - connectivity.c_desired_phase(i)
+            - desired[i]
         )
 
 
@@ -91,10 +109,23 @@ cpdef inline void ode_damplitude(
 
     """
     cdef unsigned int i, n_oscillators = oscillators.n_oscillators
+    cdef DTYPE drive
+    # Local memoryviews of the arrays read in the loop
+    cdef DTYPEv2 drives_a = drives.array
+    cdef UITYPEv1 drive2osc = oscillators.drive2osc_map.array
+    cdef DTYPEv2 amp = oscillators.nominal_amplitudes.array
+    cdef DTYPEv1 rates = oscillators.rates.array
     for i in range(n_oscillators):  # , nogil=True):
         # rate*(nominal_amplitude - amplitude)
-        dstate[n_oscillators+i] = oscillators.c_rate(i)*(
-            oscillators.c_nominal_amplitude(iteration, i, drives)
+        drive = drives_a[iteration, drive2osc[i]]
+        dstate[n_oscillators+i] = rates[i]*(
+            (
+                (amp[i, 0]*drive + amp[i, 1])
+                if amp[i, 2] <= drive <= amp[i, 3]
+                else amp[i, 4]
+                if drive < amp[i, 2]
+                else amp[i, 5]
+            )
             - amplitude(state, i, n_oscillators)
         )
 
@@ -248,13 +279,24 @@ cpdef inline void ode_joints(
 
     """
     cdef unsigned int joint_i, n_joints = joints.c_n_joints()
+    cdef double drive0, drive1, drive_mean, drive_diff
+    # Local memoryviews of the arrays read in the loop
+    cdef DTYPEv2 drives_a = drives.array
+    cdef DTYPEv2 jarr = joints.array
+    cdef UITYPEv2 d2j = joints.drive2joint_map.array
     for joint_i in range(n_joints):
         # rate*(joints_offset_desired - joints_offset)
-        dstate[2*n_oscillators+joint_i] = joints.c_rate(joint_i)*(
-            joints.c_offset_desired(
-                iteration,
-                joint_i,
-                drives,
+        drive0 = drives_a[iteration, d2j[joint_i, 0]]
+        drive1 = drives_a[iteration, d2j[joint_i, 1]]
+        drive_mean = 0.5*(drive0+drive1)
+        drive_diff = drive1-drive0
+        dstate[2*n_oscillators+joint_i] = jarr[joint_i, 6]*(
+            (
+                (jarr[joint_i, 0]*drive_diff + jarr[joint_i, 1])
+                if jarr[joint_i, 2] <= drive_mean <= jarr[joint_i, 3]
+                else jarr[joint_i, 4]
+                if drive_mean < jarr[joint_i, 2]
+                else jarr[joint_i, 5]
             ) - joint_offset(state, joint_i, n_oscillators)
         )
 
